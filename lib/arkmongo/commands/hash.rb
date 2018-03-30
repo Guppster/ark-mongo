@@ -3,6 +3,8 @@
 require_relative '../cmd'
 require 'mongo'
 require 'digest'
+require 'json'
+
 
 module Arkmongo
   module Commands
@@ -23,6 +25,9 @@ module Arkmongo
 
         # Generate hash using args DB, collection, and query options
         hash = generate_hash
+
+        # DEBUG (confirming hashing works before saving is implemented)
+        puts 'Hash is: ' + hash
 
         # Save the hash to hashDB and blockchain
         save_hash(hash)
@@ -48,19 +53,20 @@ module Arkmongo
         hash_index_view.create_one({ hash: 1 }, unique: true)
       end
 
+      # Returns the hash of the database query specified on initialization
       def generate_hash
         # Setup hashing function
         sha256 = Digest::SHA256.new
 
         # Make sure we query the correct collection
-        collection = @client[:@collection_name]
+        collection = @client[@collection_name]
 
         # Include the query in the hash
-        sha256 << @options[:query]
+        sha256 << @options[:query].to_json
 
         # Include each document returned from query in the hash
         collection.find(@options[:query]).each do |document|
-          sha256 << document
+          sha256 << document.to_s
         end
 
         # Return the hash

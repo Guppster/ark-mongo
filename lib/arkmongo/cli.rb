@@ -35,7 +35,7 @@ module Arkmongo
     desc 'hash <MONGO_URI> <COLLECTION_NAME>',
          'Generates a hash of the selected documents'
 
-    method_option :query, type: :string, banner: 'mongo query', aliases: ['-q'],
+    method_option :query, type: :hash, banner: 'mongo query', aliases: ['-q'],
                           desc: 'Narrows down the selected collection'
 
     def hash(mongo_uri, collection)
