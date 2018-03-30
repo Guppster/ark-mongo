@@ -18,6 +18,20 @@ module Arkmongo
     end
     map %w[(--version -v)] => :version
 
+    desc 'validate <MONGO_URI>', 'Validates secured queries'
+
+    method_option :hash, type: :string, banner: 'hash string', aliases: ['-h'],
+                         desc: 'Validate a specific hash'
+
+    def validate(mongo_uri)
+      if options[:help]
+        invoke :help, ['validate']
+      else
+        require_relative 'commands/validate'
+        Arkmongo::Commands::Validate.new(mongo_uri, options).execute
+      end
+    end
+
     desc 'hash <MONGO_URI> <COLLECTION_NAME>',
          'Generates a hash of the selected documents'
 

@@ -48,7 +48,7 @@ module Arkmongo
       end
 
       def generate_hash
-        'hash'
+
       end
 
       # Saves the hash
