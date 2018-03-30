@@ -2,6 +2,7 @@
 
 require_relative '../cmd'
 require 'mongo'
+require 'digest'
 
 module Arkmongo
   module Commands
@@ -9,17 +10,16 @@ module Arkmongo
     class Hash < Arkmongo::Cmd
       def initialize(mongo_uri, collection, options)
         @mongo_uri = mongo_uri
-        @collection = collection
+        @collection_name = collection
         @options = options
+
+        # Connect to the mongo instance and get DB
+        @client = Mongo::Client.new(@mongo_uri)
       end
 
       def execute
-        # Connect to the mongo instance and get DB
-        client = Mongo::Client.new(@mongo_uri)
-        @db = client.database
-
         # Create a new DB for storing hashes (hashDB)
-        init_hash_db(client)
+        init_hash_db
 
         # Generate hash using args DB, collection, and query options
         hash = generate_hash
@@ -33,8 +33,9 @@ module Arkmongo
 
       # Creates a database to store previous queries and their hashes for
       # validation in the future
-      def init_hash_db(client)
-        hash_client = client.use(:arkmongo)
+      def init_hash_db
+        # Get a new client that handles the 'arkmongo' database
+        hash_client = @client.use(:arkmongo)
         hash_collection = hash_client.database[:query_hashes]
 
         # Use an index view to setup indexes for the new collection
@@ -48,7 +49,22 @@ module Arkmongo
       end
 
       def generate_hash
+        # Setup hashing function
+        sha256 = Digest::SHA256.new
 
+        # Make sure we query the correct collection
+        collection = @client[:@collection_name]
+
+        # Include the query in the hash
+        sha256 << @options[:query]
+
+        # Include each document returned from query in the hash
+        collection.find(@options[:query]).each do |document|
+          sha256 << document
+        end
+
+        # Return the hash
+        sha256.digest
       end
 
       # Saves the hash
