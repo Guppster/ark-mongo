@@ -5,6 +5,7 @@ require 'mongo'
 
 module Arkmongo
   module Commands
+    # Handles hashing operations
     class Hash < Arkmongo::Cmd
       def initialize(mongo_uri, collection, options)
         @mongo_uri = mongo_uri
@@ -15,17 +16,10 @@ module Arkmongo
       def execute
         # Connect to the mongo instance and get DB
         client = Mongo::Client.new(@mongo_uri)
-        db = client.database
-
-        # Confirming the db connection [debug!]
-        puts db.collections
-
-        puts '---testing---'
-
-        puts db.collection_names
+        @db = client.database
 
         # Create a new DB for storing hashes (hashDB)
-        init_hash_db
+        init_hash_db(client)
 
         # Generate hash using args DB, collection, and query options
         hash = generate_hash
@@ -37,7 +31,21 @@ module Arkmongo
         verify
       end
 
-      def init_hash_db; end
+      # Creates a database to store previous queries and their hashes for
+      # validation in the future
+      def init_hash_db(client)
+        hash_client = client.use(:arkmongo)
+        hash_collection = hash_client.database[:query_hashes]
+
+        # Use an index view to setup indexes for the new collection
+        hash_index_view = Mongo::Index::View.new(hash_collection)
+
+        # TODO: change to create_many method
+        hash_index_view.create_one({ db: 1, collection: 1, query: 1,
+                                     projection: 1 }, unique: true)
+
+        hash_index_view.create_one({ hash: 1 }, unique: true)
+      end
 
       def generate_hash
         'hash'
