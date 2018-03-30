@@ -1,8 +1,9 @@
-# Arkmongo
+# ark-mongo
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/arkmongo`. To experiment with that code, run `bin/console` for an interactive prompt.
-
-TODO: Delete this and the text above, and describe your gem
+ArkMongo is a command line utility created to secure MongoDB by utilizing the Ark blockchain.
+The utility creates hashes of queries and pushes them onto the blockchain and onto a separate database.
+You can then validate each of the hashes to ensure no malicious activity has taken place on the database
+and verify interactions.
 
 ## Installation
 
@@ -22,7 +23,6 @@ Or install it yourself as:
 
 ## Usage
 
-TODO: Write usage instructions here
 
 ## Development
 
@@ -32,7 +32,7 @@ To install this gem onto your local machine, run `bundle exec rake install`. To 
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/[guppster]/arkmongo. 
+Bug reports and pull requests are welcome on GitHub at https://github.com/guppster/arkmongo. 
 
 ## Copyright
 
