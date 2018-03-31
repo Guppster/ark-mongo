@@ -5,7 +5,6 @@ require 'mongo'
 require 'digest'
 require 'json'
 
-
 module Arkmongo
   module Commands
     # Handles hashing operations
@@ -40,11 +39,11 @@ module Arkmongo
       # validation in the future
       def init_hash_db
         # Get a new client that handles the 'arkmongo' database
-        hash_client = @client.use(:arkmongo)
-        hash_collection = hash_client.database[:query_hashes]
+        @hash_client = @client.use(:arkmongo)
+        @hash_collection = @hash_client.database[:query_hashes]
 
         # Use an index view to setup indexes for the new collection
-        hash_index_view = Mongo::Index::View.new(hash_collection)
+        hash_index_view = Mongo::Index::View.new(@hash_collection)
 
         # TODO: change to create_many method
         hash_index_view.create_one({ db: 1, collection: 1, query: 1,
@@ -70,19 +69,37 @@ module Arkmongo
         end
 
         # Return the hash
-        sha256.digest
+        sha256.hexdigest
       end
 
       # Saves the hash
       def save_hash(hash)
         # Save the hash to the hash database
-        save_hash_db(hash)
+        save_hash_db(hash, @client.database.name, @collection_name, @options[:query], {})
 
         # Save the hash to the blockchain
         save_hash_ark(hash)
       end
 
-      def save_hash_db(hash); end
+      def save_hash_db(hash, database, collection, query, projection)
+        # Prepare hash structure
+        hash_data = {
+          hash: hash,
+          status: 'pending',
+          dateTime: Time.now
+        }
+
+        # Prepare filter query
+        filter_data = {
+          db: database,
+          collection: collection,
+          query: query,
+          projection: projection
+        }
+
+        # Update the query with new hash data
+        @hash_collection.update_one(filter_data, {'$set' => hash_data}, upsert: true)
+      end
 
       def save_hash_ark(hash); end
 
