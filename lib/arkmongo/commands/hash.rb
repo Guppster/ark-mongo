@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require_relative '../cmd'
-require_relative '../utils/crypto.rb'
+require 'tty-font'
 require 'mongo'
 require 'digest'
 require 'json'
@@ -15,28 +15,29 @@ module Arkmongo
         @mongo_uri = mongo_uri
         @collection_name = collection
         @options = options
+        @delegate_secret = 'planet wrap clever dirt silk dance prefer view try swap enact island'
+        @title_font = TTY::Font.new(:standard)
 
         # Connect to the mongo instance and get DB
+        Mongo::Logger.logger.level = Logger::FATAL
         @client = Mongo::Client.new(@mongo_uri)
 
         @ark = Ark::Client.new(
           ip: '127.0.0.1',
           port: 14100,
-          nethash: 'd8632323cae0f1c50c5d4b442df9aef8cadb57b56accfa87b5a0b97ea6d8c98e',
+          nethash: '6a0eab08d4b8c3c818f93bc45fb51f7317e50c4c764fbedbf9675bb0e688dc9a',
           version: '0.0.1',
-          network_address: '1e'
+          network_address: '1E'
         )
       end
 
       def execute
+        puts @title_font.write("HASHING")
         # Create a new DB for storing hashes (hashDB)
         init_hash_db
 
         # Generate hash using args DB, collection, and query options
         hash = generate_hash
-
-        # DEBUG (confirming hashing works before saving is implemented)
-        puts 'Hash is: ' + hash
 
         # Save the hash to hashDB and blockchain
         save_hash(hash)
@@ -62,7 +63,7 @@ module Arkmongo
         hash_index_view.create_one({ hash: 1 }, unique: true)
 
         hash_index_view.create_one({ address: 1, blockStatus: 1,
-                                     transactionID: 1 }, unique: true)
+                                     transactionID: 1, secret: 1 }, unique: true)
       end
 
       # Returns the hash of the database query specified on initialization
@@ -88,13 +89,13 @@ module Arkmongo
       # Saves the hash
       def save_hash(hash)
         # Save the hash to the hash database
-        save_hash_db(hash, @client.database.name, @collection_name, @options[:query], {})
+        save_hash_db(hash)
 
         # Save the hash to the blockchain
         save_hash_ark(hash)
       end
 
-      def save_hash_db(hash, database, collection, query, projection)
+      def save_hash_db(hash)
         # Prepare hash structure
         hash_data = {
           hash: hash,
@@ -102,6 +103,14 @@ module Arkmongo
           dateTime: Time.now
         }
 
+        # Update the query with hash_data
+        update_db(hash_data)
+      end
+
+      def update_db(update_hash,
+                    database = @client.database.name,
+                    collection = @collection_name,
+                    query = @options[:query], projection = {})
         # Prepare filter query
         filter_data = {
           db: database,
@@ -111,21 +120,37 @@ module Arkmongo
         }
 
         # Update the query with new hash data
-        @hash_collection.update_one(filter_data, {'$set' => hash_data}, upsert: true)
+        @hash_collection.update_one(filter_data, { '$set' => update_hash }, upsert: true)
       end
 
       def save_hash_ark(hash)
-        processTransaction(hash)
+        process_transaction(hash)
       end
 
-      def processTransaction(hash)
-        key = retrieve_key(hash)
-        puts "key is #{key}"
+      def process_transaction(hash)
+        # Get public key for the recipient address and push to the caching db
+        public_key = retrieve_public_key.to_s
+        secret = generate_secret
+
+        update_db(address: public_key,
+                  secret: secret,
+                  blockStatus: 'signed and awaiting confirmation')
+
+        # Create and send out a transaction
+        @ark.create_transaction(public_key, 1, hash, @delegate_secret, nil)
       end
 
-      def retrieve_key(hash)
-        full_key = Ark::Util::Crypto.get_key("#{@client.database.name}xx#{@collection_name}xx#{@options[:query]}xx#{hash}")
-        full_key.public_key.unpack('H*').first
+      # Return the public key corrisponding to this query's key
+      def retrieve_public_key
+        full_key = Ark::Util::Crypto.get_key(generate_secret)
+        Ark::Util::Crypto.get_address(full_key, '1E')
+      end
+
+      # Generate the secret based on query details
+      # This isn't bad because the value on the address is useless to us
+      # We only care about transaction integrity which happens regardless of individual secrets
+      def generate_secret
+        Digest::SHA256.hexdigest "xx#{@client.database.name}xx#{@collection_name}xx#{@options[:query]}xx"
       end
 
       def verify; end
