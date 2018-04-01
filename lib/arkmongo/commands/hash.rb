@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require_relative '../cmd'
-require 'tty-font'
+require 'pastel'
 require 'mongo'
 require 'digest'
 require 'json'
@@ -16,7 +16,11 @@ module Arkmongo
         @collection_name = collection
         @options = options
         @delegate_secret = 'planet wrap clever dirt silk dance prefer view try swap enact island'
-        @title_font = TTY::Font.new(:standard)
+
+        pastel = Pastel.new
+        @output = pastel.blue.detach
+        @error = pastel.red.detach
+        @timestamp = pastel.yellow.detach
 
         # Connect to the mongo instance and get DB
         Mongo::Logger.logger.level = Logger::FATAL
@@ -31,8 +35,16 @@ module Arkmongo
         )
       end
 
+      def display(output, level)
+        puts @timestamp.call(Time.now.strftime("%H:%M:%S")) + ': ' + level.call(output)
+      end
+
       def execute
-        puts @title_font.write("HASHING")
+        puts '------------------------------------------------------------------'
+        puts
+        display('Executing Hash command', @output)
+        display('BIG ERROR OMG', @error)
+
         # Create a new DB for storing hashes (hashDB)
         init_hash_db
 

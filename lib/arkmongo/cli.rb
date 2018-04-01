@@ -16,7 +16,7 @@ module Arkmongo
     pastel = Pastel.new
     title_font = TTY::Font.new
 
-    puts pastel.red(title_font.write('ArkMongo'))
+    puts pastel.red.bold(title_font.write('ArkMongo'))
 
     desc 'version', 'arkmongo version'
     def version
@@ -25,7 +25,7 @@ module Arkmongo
     end
     map %w[(--version -v)] => :version
 
-    desc 'status MONGO_URI', 'Command description...'
+    desc 'status <MONGO_URI>', 'Check the status of cache DB and Ark blockchain'
     def status(mongo_uri)
       if options[:help]
         invoke :help, ['status']
