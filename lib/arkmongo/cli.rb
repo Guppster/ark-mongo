@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require 'thor'
+require 'pastel'
+require 'tty-font'
 
 module Arkmongo
   # Handle the application command line parsing
@@ -11,12 +13,27 @@ module Arkmongo
     # Error raised by this runner
     Error = Class.new(StandardError)
 
+    pastel = Pastel.new
+    title_font = TTY::Font.new
+
+    puts pastel.red(title_font.write('ArkMongo'))
+
     desc 'version', 'arkmongo version'
     def version
       require_relative 'version'
       puts "v#{Arkmongo::VERSION}"
     end
     map %w[(--version -v)] => :version
+
+    desc 'status MONGO_URI', 'Command description...'
+    def status(mongo_uri)
+      if options[:help]
+        invoke :help, ['status']
+      else
+        require_relative 'commands/status'
+        Arkmongo::Commands::Status.new(mongo_uri, options).execute
+      end
+    end
 
     desc 'validate <MONGO_URI>', 'Validates secured queries'
 
