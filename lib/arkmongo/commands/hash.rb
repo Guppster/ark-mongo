@@ -1,9 +1,11 @@
 # frozen_string_literal: true
 
 require_relative '../cmd'
+require_relative '../utils/crypto.rb'
 require 'mongo'
 require 'digest'
 require 'json'
+require 'ark'
 
 module Arkmongo
   module Commands
@@ -16,6 +18,14 @@ module Arkmongo
 
         # Connect to the mongo instance and get DB
         @client = Mongo::Client.new(@mongo_uri)
+
+        @ark = Ark::Client.new(
+          ip: '127.0.0.1',
+          port: 14100,
+          nethash: 'd8632323cae0f1c50c5d4b442df9aef8cadb57b56accfa87b5a0b97ea6d8c98e',
+          version: '0.0.1',
+          network_address: '1e'
+        )
       end
 
       def execute
@@ -50,6 +60,9 @@ module Arkmongo
                                      projection: 1 }, unique: true)
 
         hash_index_view.create_one({ hash: 1 }, unique: true)
+
+        hash_index_view.create_one({ address: 1, blockStatus: 1,
+                                     transactionID: 1 }, unique: true)
       end
 
       # Returns the hash of the database query specified on initialization
@@ -85,7 +98,7 @@ module Arkmongo
         # Prepare hash structure
         hash_data = {
           hash: hash,
-          status: 'pending',
+          blockStatus: 'pending creation',
           dateTime: Time.now
         }
 
@@ -101,7 +114,19 @@ module Arkmongo
         @hash_collection.update_one(filter_data, {'$set' => hash_data}, upsert: true)
       end
 
-      def save_hash_ark(hash); end
+      def save_hash_ark(hash)
+        processTransaction(hash)
+      end
+
+      def processTransaction(hash)
+        key = retrieve_key(hash)
+        puts "key is #{key}"
+      end
+
+      def retrieve_key(hash)
+        full_key = Ark::Util::Crypto.get_key("#{@client.database.name}xx#{@collection_name}xx#{@options[:query]}xx#{hash}")
+        full_key.public_key.unpack('H*').first
+      end
 
       def verify; end
     end
