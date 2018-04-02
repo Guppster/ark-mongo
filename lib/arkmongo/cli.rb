@@ -49,18 +49,18 @@ module Arkmongo
       end
     end
 
-    desc 'hash <MONGO_URI> <COLLECTION_NAME>',
+    desc 'hash <MONGO_URI> <COLLECTION_NAME> <SECRET> <NETHASH>',
          'Generates a hash of the selected documents'
 
     method_option :query, type: :hash, banner: 'mongo query', aliases: ['-q'],
                           desc: 'Narrows down the selected collection'
 
-    def hash(mongo_uri, collection)
+    def hash(mongo_uri, secret, nethash, collection)
       if options[:help]
         invoke :help, ['hash']
       else
         require_relative 'commands/hash'
-        Arkmongo::Commands::Hash.new(mongo_uri, collection, options).execute
+        Arkmongo::Commands::Hash.new(mongo_uri, secret, nethash, collection, options).execute
       end
     end
   end

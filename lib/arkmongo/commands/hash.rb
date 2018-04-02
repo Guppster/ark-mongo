@@ -13,11 +13,12 @@ module Arkmongo
   module Commands
     # Handles hashing operations
     class Hash < Arkmongo::Cmd
-      def initialize(mongo_uri, collection, options)
+      def initialize(mongo_uri, secret, nethash, collection, options)
         @mongo_uri = mongo_uri
         @collection_name = collection
         @options = options
-        @delegate_secret = 'planet wrap clever dirt silk dance prefer view try swap enact island'
+        @delegate_secret = secret
+        @nethash = nethash
 
         pastel = Pastel.new
         @output = pastel.blue.detach
@@ -39,7 +40,7 @@ module Arkmongo
         @ark = Ark::Client.new(
           ip: '127.0.0.1',
           port: 14100,
-          nethash: '6a0eab08d4b8c3c818f93bc45fb51f7317e50c4c764fbedbf9675bb0e688dc9a',
+          nethash: @nethash,
           version: '0.0.1',
           network_address: '1E'
         )
@@ -86,7 +87,7 @@ module Arkmongo
         hash_index_view.create_one({ hash: 1 }, unique: true)
 
         hash_index_view.create_one({ address: 1, blockStatus: 1,
-                                     transactionID: 1, secret: 1 }, unique: true)
+                                     result: 1, secret: 1 }, unique: true)
       end
 
       # Returns the hash of the database query specified on initialization
