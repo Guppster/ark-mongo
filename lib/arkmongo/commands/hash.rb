@@ -147,7 +147,7 @@ module Arkmongo
       def send_to_blockchain(hash)
         result = process_transaction(hash)
 
-        if result[:success]
+        if result['success']
           display('Successfully sent to blockchain', @output)
         elsif display('Sending transaction to blockchain failed' + JSON.neat_generate(result), @error)
         end
@@ -169,7 +169,7 @@ module Arkmongo
         display('Saving blockchain details to cache', @output)
         update_db(address: public_key,
                   secret: secret,
-                  transactionId: result,
+                  result: result,
                   blockStatus: 'signed and awaiting confirmation')
 
         result
@@ -197,7 +197,8 @@ module Arkmongo
       end
 
       def verify(result)
-        display('Verifying transaction', @blockchain_output)
+        transaction_id = result['transactionIds'][0]
+        display("Verifying transaction #{transaction_id}", @blockchain_output)
       end
 
       def display(output, level)
