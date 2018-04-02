@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative '../cmd'
+require 'tty-progressbar'
 require 'pastel'
 require 'mongo'
 require 'digest'
@@ -24,6 +25,12 @@ module Arkmongo
         @blockchain_output = pastel.green.detach
         @error = pastel.red.detach
         @timestamp = pastel.yellow.detach
+      end
+
+      def setup
+        puts '------------------------------------------------------------------'
+        puts
+        display('Executing Hash command', @output)
 
         # Connect to the mongo instance and get DB
         Mongo::Logger.logger.level = Logger::FATAL
@@ -38,25 +45,9 @@ module Arkmongo
         )
       end
 
-      def display(output, level)
-
-        if level == @blockchain_output
-          label = '[ARK]: '
-        elsif level == @db_output
-          label = '[DB]: '
-        elsif level == @output
-          label = '[ArkMongo]: '
-        elsif level == @error
-          label = '[WARNING]: '
-        end
-
-        puts @timestamp.call(Time.now.strftime("%H:%M:%S")) + ': ' + level.call(label + output)
-      end
-
       def execute
-        puts '------------------------------------------------------------------'
-        puts
-        display('Executing Hash command', @output)
+        # Setup ARK and HashDB
+        setup
 
         # Create a new DB for storing hashes (hashDB)
         init_hash_db
@@ -64,11 +55,14 @@ module Arkmongo
         # Generate hash using args DB, collection, and query options
         hash = generate_hash
 
-        # Save the hash to hashDB and blockchain
-        save_hash(hash)
+        # Save the hash to hashDB
+        save_hash_db(hash)
+
+        # Send hash to blockchain
+        result = send_to_blockchain(hash)
 
         # Verify the hash was sucessfully saved
-        verify
+        verify(result)
       end
 
       # Creates a database to store previous queries and their hashes for
@@ -111,24 +105,15 @@ module Arkmongo
         collection.find(@options[:query]).each do |document|
           sha256 << document.to_s
         end
-        
+
         display("Query hash is #{sha256.hexdigest}", @output)
 
         # Return the hash
         sha256.hexdigest
       end
 
-      # Saves the hash
-      def save_hash(hash)
-        display('Saving document hash', @output)
-        # Save the hash to the hash database
-        save_hash_db(hash)
-
-        # Save the hash to the blockchain
-        save_hash_ark(hash)
-      end
-
       def save_hash_db(hash)
+        display('Saving document hash', @output)
         # Prepare hash structure
         hash_data = {
           hash: hash,
@@ -159,9 +144,15 @@ module Arkmongo
         @hash_collection.update_one(filter_data, { '$set' => update_hash }, upsert: true)
       end
 
-      def save_hash_ark(hash)
-        process_transaction(hash)
-        display('Successfully sent to blockchain', @output)
+      def send_to_blockchain(hash)
+        result = process_transaction(hash)
+
+        if result[:success]
+          display('Successfully sent to blockchain', @output)
+        elsif display('Sending transaction to blockchain failed' + JSON.neat_generate(result), @error)
+        end
+
+        result
       end
 
       def process_transaction(hash)
@@ -171,15 +162,17 @@ module Arkmongo
 
         display("Query address is #{public_key}", @blockchain_output)
 
+        display('Creating ark transaction', @blockchain_output)
+        # Create and send out a transaction and returns transactionIds
+        result = @ark.create_transaction(public_key, 1, hash, @delegate_secret, nil)
+
+        display('Saving blockchain details to cache', @output)
         update_db(address: public_key,
                   secret: secret,
+                  transactionId: result,
                   blockStatus: 'signed and awaiting confirmation')
 
-        display('Updated cache DB with blockchain details', @output)
-
-        display('Creating ark transaction', @blockchain_output)
-        # Create and send out a transaction
-        @ark.create_transaction(public_key, 1, hash, @delegate_secret, nil)
+        result
       end
 
       # Return the public key corrisponding to this query's key
@@ -203,7 +196,23 @@ module Arkmongo
         Digest::SHA256.hexdigest "xx#{@client.database.name}xx#{@collection_name}xx#{@options[:query]}xx"
       end
 
-      def verify; end
+      def verify(result)
+        display('Verifying transaction', @blockchain_output)
+      end
+
+      def display(output, level)
+        if level == @blockchain_output
+          label = '[ARK]: '
+        elsif level == @db_output
+          label = '[DB]: '
+        elsif level == @output
+          label = '[ArkMongo]: '
+        elsif level == @error
+          label = '[WARNING]: '
+        end
+
+        puts @timestamp.call(Time.now.strftime("%H:%M:%S")) + ': ' + level.call(label + output)
+      end
     end
   end
 end
