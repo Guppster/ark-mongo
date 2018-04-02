@@ -198,8 +198,57 @@ module Arkmongo
       end
 
       def verify(result)
+        # Setup progress bars
+        bars = TTY::ProgressBar::Multi.new('Blockchain validation [:bar] :percent')
+
+        verify_bar = bars.register('Verifying TX [:bar] :elapsed spent discovering transaction', total: 20)
+        confirm_bar = bars.register('Confirming TX [:bar] :current confirmations recieved', total: 5, width: 20)
+
         transaction_id = result['transactionIds'][0]
-        display("Verifying transaction #{transaction_id}", @blockchain_output)
+
+        display("Verifying/Confirming transaction #{transaction_id}", @blockchain_output)
+
+        # Begin displaying the bars
+        bars.start
+
+        # Wait for the transaction to get its first confirmation
+        begin
+          verify_bar.advance
+          transaction = @ark.transaction(transaction_id)
+        rescue
+          sleep(1)
+          retry unless verify_bar.complete?
+        end
+
+        # Check if we were able to find a confirmed transaction
+        if transaction.nil?
+          display("Transaction verification timed-out for #{transaction_id}", @error)
+          exit
+        end
+
+        # Set the verify bar to the end
+        verify_bar.finish
+
+        # Used for keeping track if the confirmations changed every second
+        temp_confirmations = 0
+
+        # Wait for the transaction to get 15 confirmations
+        while confirm_bar.complete? == false
+          sleep(1)
+          transaction = @ark.transaction(transaction_id)
+          confirmations = transaction['transaction']['confirmations'].to_i
+
+          # Only increment progress bar if the confirmations changed
+          if temp_confirmations == confirmations
+            next
+          end
+
+          confirm_bar.current = confirmations
+          temp_confirmations = confirmations
+        end
+
+        # Make sure the main bar is at 100% if we made it this far
+        bars.finish
       end
 
       def display(output, level)
