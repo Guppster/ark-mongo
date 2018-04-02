@@ -1,5 +1,7 @@
 # ark-mongo
 
+[![demo](https://asciinema.org/a/Do1FXheRIw5TN05e8FRFmLhPN.png)](https://asciinema.org/a/Do1FXheRIw5TN05e8FRFmLhPN?autoplay=1)
+
 ArkMongo is a command line utility created to secure MongoDB by utilizing the Ark blockchain.
 The utility creates hashes of queries and pushes them onto the blockchain and onto a separate database.
 You can then validate each of the hashes to ensure no malicious activity has taken place on the database

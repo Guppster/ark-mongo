@@ -26,6 +26,9 @@ module Arkmongo
         @blockchain_output = pastel.green.detach
         @error = pastel.red.detach
         @timestamp = pastel.yellow.detach
+        @green_progress = pastel.green("=")
+        @red_progress = pastel.red(".")
+        @head_progress = pastel.blue(">")
       end
 
       def setup
@@ -199,10 +202,23 @@ module Arkmongo
 
       def verify(result)
         # Setup progress bars
-        bars = TTY::ProgressBar::Multi.new('Blockchain validation [:bar] :percent')
+        bars = TTY::ProgressBar::Multi.new('Blockchain validation [:bar] :percent',
+                                           complete: @green_progress,
+                                           incomplete: @red_progress,
+                                           head: @head_progress)
 
-        verify_bar = bars.register('Verifying TX [:bar] :elapsed spent discovering transaction', total: 20)
-        confirm_bar = bars.register('Confirming TX [:bar] :current confirmations recieved', total: 5, width: 20)
+        verify_bar = bars.register('Verifying TX [:bar] :elapsed spent discovering transaction', 
+                                   total: 20,
+                                   complete: @green_progress,
+                                   incomplete: @red_progress,
+                                   head: @head_progress)
+
+        confirm_bar = bars.register('Confirming TX [:bar] :current confirmations recieved',
+                                    total: 5,
+                                    width: 20,
+                                    complete: @green_progress,
+                                    incomplete: @red_progress,
+                                    head: @head_progress)
 
         transaction_id = result['transactionIds'][0]
 
